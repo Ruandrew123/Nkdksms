@@ -1,0 +1,41 @@
+name: Windows VM via Tailscale
+on: 
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Configurar Usuário e Senha do RDP
+        run: |
+          $Password = "Ruangamer123?"
+          $User = "AdminVM"
+          $Container = [ADSI]"WinNT://$localhost"
+          $NewUser = $Container.Create("User", $User)
+          $NewUser.SetPassword($Password)
+          $NewUser.SetInfo()
+          $Group = [ADSI]"WinNT://$localhost/Administradores,group"
+          $Group.Add("WinNT://$User,user")
+          $RdpGroup = [ADSI]"WinNT://$localhost/Usuários do área de trabalho remota,group"
+          $RdpGroup.Add("WinNT://$User,user")
+          echo "=== CREDENCIAIS DE ACESSO ==="
+          echo "Usuario: $User"
+          echo "Senha: $Password"
+          echo "============================="
+
+      - name: Habilitar Área de Trabalho Remota (RDP)
+        run: |
+          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -name "fDenyTSConnections" -Value 0
+          Enable-NetFirewallRule -DisplayGroup "Área de Trabalho Remota"
+          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -name "UserAuthentication" -Value 0
+
+      - name: Conectar ao Tailscale
+        uses: tailscale/github-action@v3
+        with:
+          authkey: ${{ secrets.TAILSCALE_AUTH_KEY }}
+
+      - name: Manter a Máquina Ativa
+        run: |
+          echo "Máquina pronta! Conecte usando o app do Windows pelo IP do Tailscale."
+          while ($true) { Start-Sleep -Seconds 60 }
+          
